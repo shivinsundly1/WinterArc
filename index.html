@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Winter Arc Tracker</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;background:#f5f7fb;color:#172033}
+.container{max-width:1050px;margin:auto;padding:22px}
+header{background:linear-gradient(135deg,#18233a,#3c5a91);color:white;border-radius:22px;padding:28px;margin-bottom:18px;box-shadow:0 12px 35px #16233a25}
+header h1{margin:0 0 5px;font-size:32px}
+header p{margin:0;color:#dbe5ff}
+nav{display:flex;gap:8px;overflow:auto;margin-bottom:18px}
+nav button,.btn{border:0;border-radius:12px;padding:11px 15px;background:white;color:#24324d;font-weight:700;cursor:pointer;box-shadow:0 2px 10px #16233a12}
+nav button.active,.btn.primary{background:#304d84;color:white}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+.card{background:white;border-radius:17px;padding:18px;box-shadow:0 3px 16px #16233a0d}
+.stat{font-size:27px;font-weight:800;margin-top:6px}
+.muted{color:#718096;font-size:13px}
+.progress{height:10px;background:#e8edf5;border-radius:20px;overflow:hidden;margin-top:10px}
+.progress i{display:block;height:100%;background:#4d73b7;border-radius:20px}
+section{display:none}.show{display:block}
+.exercise{border:1px solid #e4e9f2;border-radius:14px;padding:15px;margin:10px 0}
+.exercise-row{display:flex;justify-content:space-between;gap:12px;align-items:center}
+.exercise strong{display:block}
+input{width:100%;padding:10px;border:1px solid #d7deea;border-radius:10px;font-size:15px}
+label{display:block;font-size:12px;font-weight:700;color:#65748b;margin:10px 0 5px}
+.inputs{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+table{width:100%;border-collapse:collapse;background:white;border-radius:15px;overflow:hidden}
+th,td{padding:12px;border-bottom:1px solid #edf0f5;text-align:left}
+th{font-size:12px;color:#68768c}
+canvas{width:100%;height:260px;border-radius:12px}
+.badge{display:inline-block;background:#edf3ff;color:#355a9d;padding:5px 9px;border-radius:20px;font-size:12px;font-weight:700}
+.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:15px}
+.btn.danger{background:#fff0f0;color:#b33333}
+.notice{background:#fff8df;border:1px solid #f0df9c;padding:12px;border-radius:12px;margin:12px 0;font-size:13px}
+@media(max-width:750px){.grid{grid-template-columns:repeat(2,1fr)}.inputs{grid-template-columns:1fr 1fr}header h1{font-size:27px}}
+@media(max-width:480px){.container{padding:12px}.grid{grid-template-columns:1fr 1fr}.inputs{grid-template-columns:1fr}.exercise-row{align-items:flex-start;flex-direction:column}}
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+<h1>❄️ Winter Arc Tracker</h1>
+<p>1 October 2026 → 31 March 2027 · Strength & consistency</p>
+</header>
+
+<div class="card" style="margin-bottom:14px;padding:13px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px">
+  <div><strong>🧪 Test Mode</strong><div class="muted">Test saving and tracking before 1 October. Test logs are kept separate from your Winter Arc.</div></div>
+  <button id="testToggle" class="btn" onclick="toggleTestMode()">OFF</button>
+</div>
+<nav>
+<button class="active" onclick="showTab('dashboard',this)">Dashboard</button>
+<button onclick="showTab('workout',this)">Today's Workout</button>
+<button onclick="showTab('progress',this)">Progress</button>
+<button onclick="showTab('history',this)">History</button>
+<button onclick="showTab('backup',this)">Backup</button>
+</nav>
+
+<section id="dashboard" class="show">
+<div class="grid">
+<div class="card"><div class="muted">Workouts completed</div><div class="stat" id="completed">0</div></div>
+<div class="card"><div class="muted">Current streak</div><div class="stat" id="streak">0 🔥</div></div>
+<div class="card"><div class="muted">Push-ups best</div><div class="stat" id="pushBest">4</div></div>
+<div class="card"><div class="muted">Sit-ups best</div><div class="stat" id="sitBest">50</div></div>
+</div>
+<div class="card">
+<h2>Winter Arc progress</h2>
+<div class="muted" id="daysText">0 days logged</div>
+<div class="progress"><i id="arcProgress" style="width:0%"></i></div>
+<p class="muted">Your October 1 baseline is 4 clean regular push-ups and about 50 sit-ups.</p>
+</div>
+</section>
+
+<section id="workout">
+<div class="card">
+<h2 id="workoutTitle">Today's Workout</h2>
+<p class="muted">Log what you actually completed. Don't force reps when your form breaks down.</p>
+<div id="exerciseList"></div>
+<div class="actions"><button class="btn primary" onclick="saveWorkout()">✅ Save Workout</button></div>
+<div id="saveMsg"></div>
+</div>
+</section>
+
+<section id="progress">
+<div class="card">
+<h2>Strength Progress</h2>
+<canvas id="chart" width="900" height="260"></canvas>
+</div>
+<br>
+<div class="grid">
+<div class="card"><div class="muted">Latest push-ups</div><div class="stat" id="latestPush">—</div></div>
+<div class="card"><div class="muted">Latest sit-ups</div><div class="stat" id="latestSit">—</div></div>
+<div class="card"><div class="muted">Best plank</div><div class="stat" id="bestPlank">—</div></div>
+<div class="card"><div class="muted">Total logs</div><div class="stat" id="totalLogs">0</div></div>
+</div>
+</section>
+
+<section id="history">
+<div class="card">
+<h2>Workout History</h2>
+<div id="historyTable"></div>
+</div>
+</section>
+
+<section id="backup">
+<div class="card">
+<h2>💾 Your data</h2>
+<div class="notice">Your records are automatically saved in this browser using localStorage. Refreshing the page will not delete them. Use Export Backup occasionally so you have a copy outside the browser.</div>
+<div class="actions">
+<button class="btn primary" onclick="exportData()">⬇ Export Backup</button>
+<label class="btn" style="display:inline-block;cursor:pointer">📥 Import Backup<input id="importFile" type="file" accept=".json" style="display:none" onchange="importData(event)"></label>
+<button class="btn danger" onclick="resetData()">Reset all data</button>
+</div>
+</div>
+</section>
+</div>
+
+<script>
+const KEY="winterArcTracker_v1";
+const START="2026-10-01", END="2027-03-31";
+const BASE={pushups:4,situps:50,logs:[]};
+let data=load();
+if(!Array.isArray(data.testLogs)) data.testLogs=[];
+
+function load(){
+  try{
+    const x=JSON.parse(localStorage.getItem(KEY));
+    return x && Array.isArray(x.logs) ? x : structuredClone(BASE);
+  }catch(e){return structuredClone(BASE)}
+}
+function persist(){localStorage.setItem(KEY,JSON.stringify(data))}
+function todayISO(){
+  const d=new Date(); const off=d.getTimezoneOffset(); return new Date(d-off*60000).toISOString().slice(0,10);
+}
+function pretty(d){return new Date(d+"T00:00:00").toLocaleDateString(undefined,{day:"numeric",month:"short",year:"numeric"})}
+function showTab(id,btn){
+  document.querySelectorAll("section").forEach(s=>s.classList.remove("show"));
+  document.getElementById(id).classList.add("show");
+  document.querySelectorAll("nav button").forEach(b=>b.classList.remove("active"));
+  btn.classList.add("active");
+  if(id==="progress") drawChart();
+  if(id==="history") renderHistory();
+}
+let testMode = localStorage.getItem("winterArcTestMode")==="1";
+
+function toggleTestMode(){
+  testMode=!testMode;
+  localStorage.setItem("winterArcTestMode",testMode?"1":"0");
+  updateTestButton();
+  renderWorkout();
+}
+function updateTestButton(){
+  const b=document.getElementById("testToggle");
+  if(!b)return;
+  b.textContent=testMode?"ON":"OFF";
+  b.classList.toggle("primary",testMode);
+}
+function activeLogs(){ return testMode ? (data.testLogs||[]) : data.logs; }
+function setActiveLogs(logs){ if(testMode)data.testLogs=logs; else data.logs=logs; }
+
+function workoutForDate(d){
+  const day=new Date(d+"T00:00:00").getDay();
+  if(day===1)return ["Push-ups","Backpack curls","Hammer curls","Triceps extensions","Plank"];
+  if(day===2)return ["Squats","Reverse lunges","Glute bridges","Sit-ups","Plank"];
+  if(day===4)return ["Push-ups","Backpack rows","Backpack curls","Hammer curls","Triceps extensions","Side plank"];
+  if(day===6)return ["Squats","Push-ups","Backpack rows","Lunges","Curls","Triceps extensions","Sit-ups","Plank"];
+  return [];
+}
+function renderWorkout(){
+ const d=todayISO(), list=(testMode && !workoutForDate(d).length) ? ["Push-ups","Backpack curls","Hammer curls","Triceps extensions","Plank"] : workoutForDate(d);
+ document.getElementById("workoutTitle").textContent=`${testMode?"🧪 Test Workout":"Today's Workout"} · ${pretty(d)}`;
+ const el=document.getElementById("exerciseList");
+ if(!list.length){
+   el.innerHTML=`<div class="notice">Today is a recovery day. You can still log a light walk/mobility session if you want.</div>`;
+   return;
+ }
+ el.innerHTML=list.map((x,i)=>`
+ <div class="exercise">
+  <div class="exercise-row"><strong>${x}</strong><span class="badge">Set your actual result</span></div>
+  <div class="inputs">
+   <div><label>Sets</label><input id="sets${i}" type="number" min="0" placeholder="3"></div>
+   <div><label>Reps / seconds</label><input id="reps${i}" type="number" min="0" placeholder="10"></div>
+   <div><label>Notes</label><input id="note${i}" placeholder="Optional"></div>
+  </div>
+ </div>`).join("");
+}
+function saveWorkout(){
+ const d=todayISO(), list=workoutForDate(d);
+ if(!list.length){alert("Today is a recovery day, so there is no workout to save.");return}
+ const exercises=list.map((name,i)=>({name,sets:+document.getElementById("sets"+i).value||0,reps:+document.getElementById("reps"+i).value||0,note:document.getElementById("note"+i).value.trim()}));
+ const logs=activeLogs();
+ const old=logs.findIndex(x=>x.date===d);
+ const record={date:d,exercises};
+ if(old>=0)logs[old]=record;else logs.push(record);
+ logs.sort((a,b)=>a.date.localeCompare(b.date));
+ setActiveLogs(logs); persist(); update();
+ document.getElementById("saveMsg").innerHTML=`<div class="notice">✅ ${testMode?'Test workout':'Workout'} saved automatically. You can refresh the page safely.</div>`;
+}
+function allExercise(name){
+ return activeLogs().flatMap(l=>l.exercises.filter(e=>e.name.toLowerCase().includes(name.toLowerCase())).map(e=>({date:l.date,...e})));
+}
+function best(name){
+ const a=allExercise(name).map(x=>x.reps).filter(Boolean);
+ return a.length?Math.max(...a):0;
+}
+function latest(name){
+ const a=allExercise(name); return a.length?a[a.length-1].reps:null;
+}
+function calcStreak(){
+ const dates=new Set(activeLogs().map(x=>x.date)); let d=new Date();
+ let iso=d.toISOString().slice(0,10), n=0;
+ while(dates.has(iso)){n++;d.setDate(d.getDate()-1);iso=d.toISOString().slice(0,10)}
+ return n;
+}
+function update(){
+ document.getElementById("completed").textContent=activeLogs().length;
+ document.getElementById("totalLogs").textContent=activeLogs().length;
+ document.getElementById("streak").textContent=calcStreak()+" 🔥";
+ document.getElementById("pushBest").textContent=Math.max(4,best("push-ups"));
+ document.getElementById("sitBest").textContent=Math.max(50,best("sit-ups"));
+ document.getElementById("latestPush").textContent=latest("push-ups")??"—";
+ document.getElementById("latestSit").textContent=latest("sit-ups")??"—";
+ const plank=Math.max(best("plank"),best("side plank"));
+ document.getElementById("bestPlank").textContent=plank?plank+" sec":"—";
+ document.getElementById("daysText").textContent=activeLogs().length+(testMode?" test days logged":" workout days logged");
+ const start=new Date(START),end=new Date(END),now=new Date();
+ let pct=Math.max(0,Math.min(100,((Math.min(now,end)-start)/(end-start))*100));
+ document.getElementById("arcProgress").style.width=pct+"%";
+}
+function renderHistory(){
+ const box=document.getElementById("historyTable");
+ if(!activeLogs().length){box.innerHTML='<p class="muted">No workouts logged yet.</p>';return}
+ box.innerHTML=`<table><thead><tr><th>Date</th><th>Exercises</th><th>Key results</th></tr></thead><tbody>`+
+ activeLogs().slice().reverse().map(l=>{
+  const keys=l.exercises.filter(e=>e.reps).map(e=>`${e.name}: ${e.reps}${e.name.toLowerCase().includes("plank")?" sec":" reps"}`).join("<br>");
+  return `<tr><td>${pretty(l.date)}</td><td>${l.exercises.length}</td><td>${keys||"—"}</td></tr>`
+ }).join("")+"</tbody></table>";
+}
+function drawChart(){
+ const c=document.getElementById("chart"),ctx=c.getContext("2d");
+ ctx.clearRect(0,0,c.width,c.height);
+ const vals=[{name:"Push-ups",arr:allExercise("push-ups")},{name:"Sit-ups",arr:allExercise("sit-ups")}];
+ const max=Math.max(10,...vals.flatMap(v=>v.arr.map(x=>x.reps)));
+ ctx.strokeStyle="#dfe5ef";ctx.lineWidth=1;
+ for(let i=0;i<=5;i++){let y=220-i*35;ctx.beginPath();ctx.moveTo(55,y);ctx.lineTo(870,y);ctx.stroke();ctx.fillStyle="#748196";ctx.font="12px sans-serif";ctx.fillText(Math.round(max*i/5),10,y+4)}
+ vals.forEach((v,idx)=>{
+  if(!v.arr.length)return;
+  ctx.beginPath();
+  v.arr.forEach((p,i)=>{let x=60+(i/Math.max(1,v.arr.length-1))*800,y=220-(p.reps/max)*175;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});
+  ctx.strokeStyle=idx?"#829bc5":"#304d84";ctx.lineWidth=3;ctx.stroke();
+ });
+ ctx.fillStyle="#304d84";ctx.font="bold 13px sans-serif";ctx.fillText("Push-ups",60,25);
+ ctx.fillStyle="#829bc5";ctx.fillText("Sit-ups",150,25);
+}
+function exportData(){
+ const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+ const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="winter-arc-backup.json";a.click();URL.revokeObjectURL(a.href);
+}
+function importData(e){
+ const file=e.target.files[0];if(!file)return;
+ const r=new FileReader();
+ r.onload=()=>{try{
+  const x=JSON.parse(r.result);
+  if(!Array.isArray(x.logs))throw Error();
+  data=x;persist();update();renderWorkout();renderHistory();alert("Backup imported successfully.");
+ }catch(err){alert("That file is not a valid Winter Arc backup.")}};
+ r.readAsText(file);
+}
+function resetData(){
+ if(confirm("Delete ALL Winter Arc records from this browser? Export a backup first if you want to keep them.")){
+  if(testMode){data.testLogs=[];}else{data.logs=[];}
+  persist();update();renderWorkout();renderHistory();
+ }
+}
+renderWorkout();update();updateTestButton();
+</script>
+</body>
+</html>
